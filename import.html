@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>税收编码数据导入</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 40px; }
+        .header h1 { font-size: 36px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .header p { margin-top: 15px; opacity: 0.9; }
+        .upload-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-zone {
+            border: 3px dashed #d69e2e;
+            border-radius: 15px;
+            padding: 60px 40px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-zone:hover { background: #faf5eb; border-color: #b7791f; }
+        .upload-zone.dragover {
+            background: #faf5eb;
+            border-color: #d69e2e;
+            transform: scale(1.02);
+        }
+        .upload-zone .icon { font-size: 64px; margin-bottom: 20px; }
+        .upload-zone p { font-size: 18px; color: #666; }
+        #fileInput { display: none; }
+        .preview {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+        .preview.show { display: block; }
+        .table-wrapper { max-height: 400px; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #1a365d; color: white; font-weight: bold; position: sticky; top: 0; }
+        tr:hover { background: #f9f9f9; }
+        .info {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            display: none;
+        }
+        .info.show { display: block; }
+        .info h3 { color: #1a365d; margin-bottom: 15px; }
+        .info p { margin: 8px 0; color: #555; }
+        .info .count { font-size: 24px; font-weight: bold; color: #d69e2e; }
+        .buttons { text-align: center; margin-top: 20px; display: none; }
+        .buttons.show { display: block; }
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            font-size: 18px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 10px;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #d69e2e 0%, #b7791f 100%);
+            color: white;
+            box-shadow: 0 10px 30px rgba(214,158,46,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(214,158,46,0.4); }
+        .btn-secondary { background: #f0f0f0; color: #666; }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .output {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            display: none;
+            margin-top: 30px;
+        }
+        .output.show { display: block; }
+        .output h3 { color: #1a365d; margin-bottom: 20px; }
+        .output textarea {
+            width: 100%;
+            height: 300px;
+            padding: 20px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .copy-box { margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 税收编码数据导入工具</h1>
+            <p>上传您的 1234.xlsx 文件，自动生成税收编码数据库</p>
+        </div>
+
+        <div class="upload-box">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <div class="icon">📁</div>
+                <p><strong>点击上传或拖拽 Excel 文件</strong></p>
+                <p style="margin-top: 10px; font-size: 14px;">支持 .xlsx, .xls 格式</p>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+
+        <div class="info" id="infoBox">
+            <h3>✅ 读取成功!</h3>
+            <p>工作表: <strong id="sheetName"></strong></p>
+            <p>总数据: <span class="count" id="totalCount">0</span> 条</p>
+            <p>列数: <strong id="colCount">0</strong></p>
+            <p style="margin-top: 15px;">识别的列: <strong id="colNames"></strong></p>
+        </div>
+
+        <div class="preview" id="preview">
+            <h3>📋 数据预览 (前50条)</h3>
+            <div class="table-wrapper">
+                <table id="previewTable"></table>
+            </div>
+        </div>
+
+        <div class="buttons" id="buttons">
+            <button class="btn btn-primary" onclick="generateOutput()">✨ 生成税收编码数据库</button>
+            <button class="btn btn-secondary" onclick="clearAll()">🔄 重新上传</button>
+        </div>
+
+        <div class="output" id="output">
+            <h3>📝 JavaScript 数据</h3>
+            <p style="color: #666; margin-bottom: 15px;">点击下方按钮直接下载 data.js 文件</p>
+            <textarea id="outputText" readonly style="display: none;"></textarea>
+            <div class="copy-box">
+                <button class="btn btn-primary" onclick="downloadFile()">💾 下载 data.js 文件</button>
+                <button class="btn btn-secondary" onclick="copyToClipboard()">📋 复制到剪贴板</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workbookData = [];
+        let headers = [];
+        let generatedData = '';
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        // 辅助函数
+        function getCategoryIcon(category) {
+            const icons = {
+                '农产品': '🌾',
+                '食品饮料': '🍔',
+                '日用百货': '🧴',
+                '服装鞋帽': '👔',
+                '电子产品': '📱',
+                '建筑材料': '🏗️',
+                '交通运输': '🚗',
+                '医疗器械': '💊',
+                '文化用品': '📚',
+                '服务': '💼'
+            };
+            return icons[category] || '📦';
+        }
+
+        // 拖拽事件
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) processFile(e.target.files[0]);
+        });
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                workbookData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                document.getElementById('sheetName').textContent = workbook.SheetNames[0];
+                
+                if (workbookData.length > 0) {
+                    headers = workbookData[0] || [];
+                    const dataRows = workbookData.slice(1).filter(row => row.some(cell => cell));
+                    
+                    document.getElementById('totalCount').textContent = dataRows.length;
+                    document.getElementById('colCount').textContent = headers.length;
+                    document.getElementById('colNames').textContent = headers.join(' | ');
+                    
+                    renderPreview(headers, dataRows.slice(0, 50));
+                    document.getElementById('infoBox').classList.add('show');
+                    document.getElementById('preview').classList.add('show');
+                    document.getElementById('buttons').classList.add('show');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderPreview(headers, data) {
+            const table = document.getElementById('previewTable');
+            let html = '<thead><tr>';
+            headers.forEach(h => html += `<th>${h || ''}</th>`);
+            html += '</tr></thead><tbody>';
+            
+            data.forEach(row => {
+                html += '<tr>';
+                for (let i = 0; i < headers.length; i++) {
+                    html += `<td>${row[i] || ''}</td>`;
+                }
+                html += '</tr>';
+            });
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+
+        function generateOutput() {
+            const dataRows = workbookData.slice(1).filter(row => row.some(cell => cell));
+            
+            const output = [];
+            dataRows.forEach(row => {
+                const item = {};
+                headers.forEach((header, idx) => {
+                    const h = String(header || '').trim();
+                    const value = String(row[idx] || '').trim();
+                    if (h.includes('编码') || h.toLowerCase().includes('code')) {
+                        item.code = value;
+                    } else if (h.includes('名称') || h.toLowerCase().includes('name')) {
+                        item.name = value;
+                    } else if (h.includes('分类') || h.toLowerCase().includes('category') || h.includes('简称')) {
+                        item.category = value;
+                    } else if (h.includes('税率') || h.toLowerCase().includes('rate')) {
+                        // 尝试提取数字税率
+                        const rateMatch = value.match(/(\d+(\.\d+)?)/);
+                        item.taxRate = rateMatch ? parseFloat(rateMatch[1]) : 13;
+                    } else if (h.includes('说明') || h.includes('描述') || h.toLowerCase().includes('desc')) {
+                        item.description = value;
+                    } else {
+                        item[h] = value;
+                    }
+                });
+                
+                // 设置默认值
+                if (!item.taxRate) {
+                    // 根据分类设置默认税率
+                    const cat = (item.category || '').toLowerCase();
+                    if (cat.includes('农产品') || cat.includes('粮食')) {
+                        item.taxRate = 9;
+                    } else {
+                        item.taxRate = 13;
+                    }
+                }
+                if (!item.description) {
+                    item.description = '';
+                }
+                if (!item.category) {
+                    item.category = '其他';
+                }
+                
+                // 生成关键词
+                item.keywords = [item.name, item.category].filter(Boolean);
+                item.relatedCodes = [];
+                
+                if (item.code || item.name) {
+                    output.push(item);
+                }
+            });
+
+            // 添加分类数据和热门数据
+            const categories = [...new Set(output.map(item => item.category))].map(cat => ({
+                id: cat,
+                name: cat,
+                icon: getCategoryIcon(cat),
+                count: output.filter(item => item.category === cat).length
+            }));
+            
+            const hotItems = output.slice(0, 8).map(item => ({
+                code: item.code,
+                name: item.name
+            }));
+            
+            const jsStr = `// 商品税收编码数据
+const taxCodeData = [
+${output.map(item => '    ' + JSON.stringify(item, null, 4).replace(/\n/g, '\n    ')).join(',\n')}
+];
+
+// 分类数据
+const categories = ${JSON.stringify(categories, null, 4)};
+
+// 热门商品
+const hotItems = ${JSON.stringify(hotItems, null, 4)};`;
+            
+            generatedData = jsStr;
+            document.getElementById('outputText').value = jsStr;
+            document.getElementById('output').classList.add('show');
+        }
+        
+        function copyToClipboard() {
+            const textarea = document.getElementById('outputText');
+            textarea.select();
+            document.execCommand('copy');
+            alert('✅ 已复制到剪贴板! 现在去更新 data.js 文件吧');
+        }
+
+        function downloadFile() {
+            const blob = new Blob([generatedData], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.js';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('✅ data.js 文件已下载! 请将其复制到项目目录覆盖原有文件');
+        }
+
+        function clearAll() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
