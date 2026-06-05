@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品税收编码查询工具</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- 搜索页面 -->
+        <div id="search-page" class="page active">
+            <header class="header">
+                <div class="header-content">
+                    <div class="logo">
+                        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <h1>商品税收编码查询</h1>
+                    </div>
+                    <p class="subtitle">快速查找商品对应的税收分类编码与税率</p>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <!-- 搜索框 -->
+                <div class="search-container">
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="输入商品名称或编码进行搜索..." autocomplete="off">
+                        <button id="clear-btn" class="clear-btn" title="清除">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="search-suggestions" class="suggestions-dropdown"></div>
+                </div>
+
+                <!-- 使用建议 -->
+                <div class="tips-section">
+                    <div class="tips-card">
+                        <h3 class="tips-title">💡 编码查找与使用建议</h3>
+                        <div class="tips-list">
+                            <div class="tip-item">
+                                <span class="tip-icon">🔍</span>
+                                <div class="tip-content">
+                                    <strong>商品名搜索：</strong>输入商品名称（如"大米"、"电脑"），快速查找对应编码
+                                </div>
+                            </div>
+                            <div class="tip-item">
+                                <span class="tip-icon">🔢</span>
+                                <div class="tip-content">
+                                    <strong>编码反向查：</strong>直接输入税收编码，查看对应商品信息
+                                </div>
+                            </div>
+                            <div class="tip-item">
+                                <span class="tip-icon">📂</span>
+                                <div class="tip-content">
+                                    <strong>按分类浏览：</strong>从下方分类导航中选择，浏览同类商品编码
+                                </div>
+                            </div>
+                            <div class="tip-item">
+                                <span class="tip-icon">📋</span>
+                                <div class="tip-content">
+                                    <strong>一键复制：</strong>点击结果查看详情，一键复制税收编码
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分类导航 -->
+                <div class="category-section">
+                    <h2 class="section-title">按分类浏览</h2>
+                    <div id="category-nav" class="category-nav"></div>
+                </div>
+
+                <!-- 热门推荐 -->
+                <div class="hot-section">
+                    <h2 class="section-title">热门查询</h2>
+                    <div id="hot-items" class="hot-grid"></div>
+                </div>
+
+                <!-- 搜索结果 -->
+                <div id="results-section" class="results-section" style="display: none;">
+                    <div class="results-header">
+                        <h2 class="section-title">搜索结果 <span id="result-count"></span></h2>
+                        <div class="filter-bar">
+                            <select id="sort-select">
+                                <option value="relevance">按相关度</option>
+                                <option value="code">按编码</option>
+                                <option value="name">按名称</option>
+                                <option value="taxRate">按税率</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="results-list" class="results-list"></div>
+                </div>
+            </main>
+
+            <footer class="footer">
+                <p>数据来源：国家税务总局 | 仅供参考，具体以官方文件为准</p>
+            </footer>
+        </div>
+
+        <!-- 详情页面 -->
+        <div id="detail-page" class="page">
+            <header class="detail-header">
+                <button id="back-btn" class="back-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5m7-7l-7 7 7 7"/>
+                    </svg>
+                    返回搜索
+                </button>
+            </header>
+
+            <main class="detail-content">
+                <div class="detail-card">
+                    <div class="detail-header-info">
+                        <span id="detail-category" class="detail-category"></span>
+                        <h1 id="detail-name" class="detail-title"></h1>
+                    </div>
+
+                    <div class="detail-code-section">
+                        <label>税收分类编码</label>
+                        <div class="code-display">
+                            <span id="detail-code" class="code-text"></span>
+                            <button id="copy-btn" class="copy-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                                </svg>
+                                复制
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="detail-info-grid">
+                        <div class="info-item">
+                            <label>增值税税率</label>
+                            <span id="detail-tax-rate" class="tax-rate-badge"></span>
+                        </div>
+                        <div class="info-item">
+                            <label>说明</label>
+                            <p id="detail-description"></p>
+                        </div>
+                    </div>
+
+                    <div class="keywords-section">
+                        <label>关键词标签</label>
+                        <div id="detail-keywords" class="keywords-list"></div>
+                    </div>
+                </div>
+
+                <!-- 相关推荐 -->
+                <div id="related-section" class="related-section">
+                    <h2 class="section-title">相关商品编码</h2>
+                    <div id="related-list" class="related-list"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
